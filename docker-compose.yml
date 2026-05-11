@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+
+  # ── PostgreSQL + pgvector ──────────────────────────────────────────────────
+  db:
+    image: pgvector/pgvector:pg16    # official pgvector image — includes extension
+    container_name: wardrobees-db
+    restart: unless-stopped
+
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+
+    ports:
+      - "${DB_PORT}:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data   # persist data between restarts
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+
+  # ── pgAdmin (optional — visual DB browser) ────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: closet_pgadmin
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    admin@closet.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+
+    ports:
+      - "5050:80"                    # open http://localhost:5050 to browse DB
+
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  postgres_data:
+  pgadmin_data:
