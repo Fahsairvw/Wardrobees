@@ -6,6 +6,9 @@ from .config import CAT_NAMES, CONF_THRESHOLD, MIN_SIZE, BORDER_MARGIN, get_grou
 from .models import yolo_model
 from .mask import isolate_with_mask
 from .embedding import get_embedding
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
@@ -42,21 +45,21 @@ def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
     img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)   # BGR
 
     if img_cv is None:
-        print('Could not decode image')
+        logging.error('Could not decode image')
         return []
 
     H, W = img_cv.shape[:2]
-    print(f'  Image: {W}x{H}px')
+    logging.info(f'  Image: {W}x{H}px')
 
     # Step 2 — YOLO inference
     # Pass BGR directly — Ultralytics handles conversion internally
     results = yolo_model(img_cv, conf=CONF_THRESHOLD)[0]
 
     if results.masks is None or len(results.boxes) == 0:
-        print('  No clothing items detected')
+        logging.info('  No clothing items detected')
         return []
 
-    print(f'  YOLO found {len(results.boxes)} item(s)')
+    logging.info(f'  YOLO found {len(results.boxes)} item(s)')
     items = []
 
     # results.masks.xy → list of contour arrays, one per detection
@@ -72,7 +75,7 @@ def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
 
         # Skip tiny detections
         if bbox_w < MIN_SIZE or bbox_h < MIN_SIZE:
-            print(f'  Skip tiny: {bbox_w}x{bbox_h}px ({CAT_NAMES[cat_id]})')
+            logging.info(f'Skip tiny: {bbox_w}x{bbox_h}px ({CAT_NAMES[cat_id]})')
             continue
 
         # Partial detection — item touches image border
@@ -121,7 +124,7 @@ def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
             'warning': 'Item may be cut off at edge' if is_partial else None,
         })
 
-        print(f'{CAT_NAMES[cat_id]} ({confidence:.0%}) '
-              f'— {bbox_w}x{bbox_h}px')
+        logging.info(f'{CAT_NAMES[cat_id]} ({confidence:.0%}) '
+                     f'— {bbox_w}x{bbox_h}px')
 
     return items

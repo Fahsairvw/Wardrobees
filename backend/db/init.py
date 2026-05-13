@@ -1,6 +1,9 @@
 import psycopg2
 import time
 from .connection import get_conn
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def init_db(retry_count=5, retry_delay=2):
@@ -98,15 +101,15 @@ def init_db(retry_count=5, retry_delay=2):
                     cur.execute('CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id);')
 
                 conn.commit()
-            print('Database initialized successfully')
+            logging.info('Database initialized successfully')
             return
 
         except psycopg2.OperationalError as e:
             if attempt < retry_count - 1:
                 wait = retry_delay * (2 ** attempt)
-                print(f'⚠ Database not ready, retrying in {wait}s... ({attempt+1}/{retry_count})')
-                print(f'  Error: {str(e)[:80]}')
+                logging.warning(f'Database not ready, retrying in {wait}s... ({attempt+1}/{retry_count})')
+                logging.warning(f'Error: {str(e)[:80]}')
                 time.sleep(wait)
             else:
-                print(f'Failed after {retry_count} attempts')
+                logging.error(f'Failed after {retry_count} attempts')
                 raise
