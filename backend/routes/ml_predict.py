@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from ml_service.schemas import PredictRequest, PredictionResult, HealthResponse
 from ml_service.inference import inference_service
 from ml_service.model_loader import model_manager
 import time
+import time
+import numpy as np
 
 router = APIRouter(prefix="/ml", tags=["ML Prediction"])
 
@@ -55,32 +57,66 @@ async def predict(request: PredictRequest):
 
 @router.post("/similarity")
 async def compute_similarity(
-    image1_url: str = None,
-    image1_base64: str = None,
-    image2_url: str = None,
-    image2_base64: str = None
+    image1_url: str = Query(None, description="URL of first image"),
+    image1_base64: str = Query(None, description="Base64 of first image"),
+    image2_url: str = Query(None, description="URL of second image"),
+    image2_base64: str = Query(None, description="Base64 of second image")
 ):
     """
     Compute similarity between two clothing images
     Returns cosine similarity score (0 to 1)
     """
     from sklearn.metrics.pairwise import cosine_similarity
-    import numpy as np
     
-    # Get features for both images
-    result1 = inference_service.predict(image_url=image1_url, image_base64=image1_base64)
-    result2 = inference_service.predict(image_url=image2_url, image_base64=image2_base64)
+    # Validate input
+    if not image1_url and not image1_base64:
+        raise HTTPException(status_code=400, detail="image1_url or image1_base64 required")
+    if not image2_url and not image2_base64:
+        raise HTTPException(status_code=400, detail="image2_url or image2_base64 required")
     
-    if not result1["success"] or not result2["success"]:
-        raise HTTPException(status_code=500, detail="Failed to process one or both images")
+    # Get features for first image
+    result1 = inference_service.predict(
+        image_url=image1_url,
+        image_base64=image1_base64,
+        return_segmentation=False,
+        return_features=True
+    )
     
-    features1 = np.array(result1.get("features", [])).reshape(1, -1)
-    features2 = np.array(result2.get("features", [])).reshape(1, -1)
+    # Get features for second image
+    result2 = inference_service.predict(
+        image_url=image2_url,
+        image_base64=image2_base64,
+        return_segmentation=False,
+        return_features=True
+    )
     
-    if features1.size == 0 or features2.size == 0:
-        raise HTTPException(status_code=400, detail="Feature extraction failed")
+    if not result1["success"]:
+        raise HTTPException(status_code=500, detail=f"Failed to process image1: {result1.get('error')}")
+    if not result2["success"]:
+        raise HTTPException(status_code=500, detail=f"Failed to process image2: {result2.get('error')}")
     
-    similarity = cosine_similarity(features1, features2)[0][0]
+    features1 = result1.get("features")
+    features2 = result2.get("features")
+    
+    if features1 is None or features2 is None:
+        raise HTTPException(status_code=400, detail="Feature extraction failed for one or both images")
+    
+    # Convert to numpy arrays
+    f1 = np.array(features1).reshape(1, -1)
+    f2 = np.array(features2).reshape(1, -1)
+    
+    # Check for NaN or empty values
+    if np.isnan(f1).any() or np.isnan(f2).any():
+        raise HTTPException(status_code=500, detail="Feature vectors contain invalid values (NaN)")
+    
+    if f1.size == 0 or f2.size == 0:
+        raise HTTPException(status_code=500, detail="Feature vectors are empty")
+    
+    # Calculate similarity
+    similarity = cosine_similarity(f1, f2)[0][0]
+    
+    # Ensure similarity is between 0 and 1
+    similarity = max(0.0, min(1.0, similarity))
     
     return {
         "similarity_score": float(similarity),

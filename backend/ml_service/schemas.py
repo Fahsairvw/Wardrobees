@@ -13,9 +13,10 @@ class PredictionResult(BaseModel):
     success: bool
     predictions: List[dict] = []
     features: Optional[List[float]] = None
-    segmentation_masks: Optional[List[Any]] = None
+    segmentation_masks: Optional[Any] = None
     inference_time_ms: Optional[float] = None
     error: Optional[str] = None
+
 
 class HealthResponse(BaseModel):
     """Health check response"""
