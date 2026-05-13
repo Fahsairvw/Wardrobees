@@ -66,8 +66,6 @@ def save_cloth_item(item: dict, wardrobe_id: int) -> dict:
 
         conn.commit()
 
-    print(f'  Saved: {item["cat_name"]} → {filename}')
-
     return {
         **cloth_row,
         'imageUrl': image_url,
