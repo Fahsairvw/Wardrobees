@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/closet_screen.dart';
+import 'screens/upload_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -23,6 +24,7 @@ class MyApp extends StatelessWidget {
         '/splash': (context) => const SplashScreen(),
         '/home': (context) => const HomeScreen(),
         '/closet': (context) => const ClosetScreen(),
+        '/upload': (context) => const UploadScreen(userId: 1), // TODO: Get actual userId
       },
     );
   }

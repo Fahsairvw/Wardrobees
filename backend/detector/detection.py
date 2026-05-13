@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import io
 from PIL import Image
+from rembg import remove
 from .config import CAT_NAMES, CONF_THRESHOLD, MIN_SIZE, BORDER_MARGIN, get_group
 from .models import yolo_model
 from .mask import isolate_with_mask
@@ -16,10 +17,11 @@ def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
         1. Decode bytes → numpy BGR
         2. Run YOLOv8-seg → bboxes + segmentation contours
         3. For each detection:
-           a. Draw contour mask → BGRA (Ultralytics native technique)
+           a. Use YOLO contour mask to isolate item
            b. Crop tight to bbox
            c. Convert to PIL RGBA PNG
-           d. Extract ResNet50 embedding
+           d. Apply rembg for refined background removal
+           e. Extract ResNet50 embedding
         4. Return list of item dicts
 
     Args:
@@ -87,8 +89,8 @@ def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
         # Returns BGRA with transparent background
         isolated_bgra = isolate_with_mask(img_cv, contour)
 
-        # Step 3b — crop tight to bbox (with small padding)
-        PAD = 5
+        # Step 3b — crop tight to bbox (with generous padding to preserve context)
+        PAD = 25
         cx1 = max(0, x1 - PAD)
         cy1 = max(0, y1 - PAD)
         cx2 = min(W, x2 + PAD)
@@ -100,12 +102,18 @@ def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
         cropped_rgba = cv2.cvtColor(cropped_bgra, cv2.COLOR_BGRA2RGBA)
         pil_img = Image.fromarray(cropped_rgba, 'RGBA')
 
+        # Step 3c+ — apply rembg for further background refinement (only if still has background)
+        # Convert to RGB temporarily for rembg to work better
+        pil_rgb = pil_img.convert('RGB')
+        pil_rgb = remove(pil_rgb)  # rembg on RGB before converting back
+        pil_img = pil_rgb.convert('RGBA')
+
         # Step 3d — extract embedding
         embedding = get_embedding(pil_img)
 
-        # Encode to PNG bytes
+        # Encode to PNG bytes with quality preservation
         buf = io.BytesIO()
-        pil_img.save(buf, format='PNG')
+        pil_img.save(buf, format='PNG', optimize=False)
         img_bytes_out = buf.getvalue()
 
         items.append({

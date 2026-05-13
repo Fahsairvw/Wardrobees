@@ -1,16 +1,18 @@
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io' show Platform;
 import '../models/wardrobe.dart';
 import '../models/cloth_item.dart';
 
 class ApiService {
   // Change this to your backend URL
-  // For Android emulator: http://10.0.2.2:8000
-  // For iOS simulator: http://localhost:8000
-  // For physical device: http://<your_machine_ip>:8000
-  // For Web: http://127.0.0.1:8000 (if localhost doesn't work)
-  static const String baseUrl = 'http://127.0.0.1:8000';
+  // For Android emulator: http://10.0.2.2:80
+  // For iOS simulator: http://localhost:80
+  // For physical device: http://<your_machine_ip>:80
+  // For Web: http://127.0.0.1:80 (if localhost doesn't work)
+  static const String baseUrl = 'http://127.0.0.1';
 
   // Health check
   static Future<bool> healthCheck() async {
@@ -95,6 +97,49 @@ class ApiService {
       return response.statusCode == 200;
     } catch (e) {
       throw Exception('Error deleting item: $e');
+    }
+  }
+
+  // Detect clothing items from image
+  static Future<Map<String, dynamic>> detectClothingItems(int userId, Uint8List imageBytes, String filename) async {
+    try {
+      final url = '$baseUrl/detect/$userId';
+      print('DEBUG: Uploading image for detection to $url');
+
+      // Determine mime type from filename
+      String subtype = 'jpeg';
+      if (filename.toLowerCase().endsWith('.png')) {
+        subtype = 'png';
+      } else if (filename.toLowerCase().endsWith('.gif')) {
+        subtype = 'gif';
+      } else if (filename.toLowerCase().endsWith('.webp')) {
+        subtype = 'webp';
+      }
+
+      final request = http.MultipartRequest('POST', Uri.parse(url));
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          imageBytes,
+          filename: filename,
+          contentType: MediaType('image', subtype),
+        ),
+      );
+
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print('DEBUG: Detection response status: ${response.statusCode}');
+      print('DEBUG: Detection response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Detection failed: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('DEBUG: Error detecting items: $e');
+      throw Exception('Error detecting items: $e');
     }
   }
 

@@ -24,10 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.pushNamed(context, '/closet');
         break;
       case 2:
-        // TODO: Navigate to Detect
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Detect feature coming soon')),
-        );
+        Navigator.pushNamed(context, '/upload');
         break;
       case 3:
         // TODO: Navigate to Search
@@ -88,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: 'Add Items',
                 description: 'Upload your clothing items',
                 imageUrl: 'https://placehold.co/51x51',
-                onTap: () => _showSnackBar('Add Items tapped'),
+                onTap: () => Navigator.pushNamed(context, '/upload'),
               ),
               const SizedBox(height: 20),
 

@@ -15,6 +15,13 @@ class _ClosetScreenState extends State<ClosetScreen> {
   int _selectedIndex = 1; // Closet is at index 1 in navigation
   late Future<Wardrobe> _wardrobeFuture;
   final int _userId = 1; // TODO: Get from user session/auth
+  
+  // Define the 3 main groups in order with their category mappings
+  final Map<String, List<String>> _groupMapping = {
+    'Tops': ['short sleeve top', 'long sleeve top', 'short sleeve outwear', 'long sleeve outwear', 'vest', 'sling'],
+    'Bottoms': ['shorts', 'trousers', 'skirt'],
+    'Dresses': ['short sleeve dress', 'long sleeve dress', 'vest dress', 'sling dress'],
+  };
 
   @override
   void initState() {
@@ -109,13 +116,32 @@ class _ClosetScreenState extends State<ClosetScreen> {
             return const Center(child: Text('Your closet is empty'));
           }
 
+          // Re-group categories by group name
+          final groupedByGroup = <String, List<ClothItem>>{};
+          _groupMapping.forEach((groupName, categories) {
+            final items = <ClothItem>[];
+            for (var category in categories) {
+              if (wardrobe.grouped.containsKey(category)) {
+                items.addAll(wardrobe.grouped[category]!);
+              }
+            }
+            if (items.isNotEmpty) {
+              groupedByGroup[groupName] = items;
+              print('DEBUG: Group "$groupName" has ${items.length} items');
+            }
+          });
+
+          if (groupedByGroup.isEmpty) {
+            return const Center(child: Text('Your closet is empty - no matching categories'));
+          }
+
           return SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (var entry in wardrobe.grouped.entries)
+                  for (var entry in groupedByGroup.entries)
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -219,13 +245,19 @@ class _ClosetScreenState extends State<ClosetScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            final result = await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => ClothingItemScreen(item: item),
               ),
             );
+            // Refresh wardrobe if item was deleted
+            if (result == true) {
+              setState(() {
+                _wardrobeFuture = ApiService.getWardrobe(_userId);
+              });
+            }
           },
           borderRadius: BorderRadius.circular(16),
           child: Container(

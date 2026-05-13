@@ -15,6 +15,61 @@ class ClothingItemScreen extends StatefulWidget {
 }
 
 class _ClothingItemScreenState extends State<ClothingItemScreen> {
+  bool _isDeleting = false;
+
+  Future<void> _deleteItem() async {
+    // Show confirmation dialog
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Item'),
+          content: const Text('Are you sure you want to delete this item? This action cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) return;
+
+    setState(() => _isDeleting = true);
+
+    try {
+      final success = await ApiService.deleteItem(widget.item.itemId);
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Item deleted successfully')),
+          );
+          Navigator.pop(context, true); // Return true to indicate refresh needed
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete item')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting item: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final imageUrl = ApiService.getImageUrl(widget.item.imageUrl);
@@ -37,6 +92,13 @@ class _ClothingItemScreenState extends State<ClothingItemScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            onPressed: _isDeleting ? null : _deleteItem,
+            tooltip: 'Delete item',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Padding(
