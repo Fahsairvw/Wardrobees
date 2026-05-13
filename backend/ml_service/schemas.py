@@ -5,7 +5,7 @@ class PredictRequest(BaseModel):
     """Request schema for prediction endpoint"""
     image_url: Optional[str] = None
     image_base64: Optional[str] = None
-    return_segmentation: bool = True
+    return_segmentation: bool = False
     return_features: bool = True
 
 class PredictionResult(BaseModel):

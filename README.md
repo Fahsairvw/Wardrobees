@@ -28,6 +28,8 @@ The goal of Wardrobees is not to stop users from shopping, but to promote consci
 1. **Backend:**
    ```bash
    cd backend
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
    pip install -r requirements.txt
    uvicorn app:app --reload
    ```

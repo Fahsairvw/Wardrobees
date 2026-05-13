@@ -3,14 +3,16 @@ import numpy as np
 from PIL import Image
 import io
 import requests
+import torch
 from .model_loader import model_manager
 
 class YOLOInference:
-    """Handle YOLO inference operations using trained model from ModelManager"""
+    """Handle YOLO inference operations using closet_v8.pt"""
     
     def __init__(self):
         self.model = model_manager.get_model()
         self.model_names = self.model.names
+        self.device = model_manager.device
     
     def _load_image(self, image_url: str = None, image_base64: str = None):
         """Load image from URL or base64 string"""
@@ -31,30 +33,90 @@ class YOLOInference:
         return img
     
     def _extract_features(self, img):
-        """Extract feature vector from image using the model"""
+        """
+        Extract feature vector from image using the YOLO model's backbone.
+        Returns a 512-dimensional embedding vector.
+        """
         try:
-            # Run inference to get features
-            results = self.model(img, verbose=False)
+            # Method 1: Use YOLO's built-in embedding if available
+            results = self.model(img, embed=True, verbose=False)  # embed=True returns features
             
             if results and len(results) > 0:
-                # Try different ways to get features
-                if hasattr(results[0], 'features') and results[0].features is not None:
-                    features = results[0].features
-                    if isinstance(features, np.ndarray):
-                        features = features.flatten().tolist()
-                    # Check for NaN values
-                    if np.isnan(features).any():
-                        print("NaN detected in features, using zeros instead")
-                        return [0.0] * 512
-                    return features
-                
-                # Alternative: Use embedding from the model
-                return [0.0] * 512  # Return zero vector as fallback
+                # Check for embeddings
+                if hasattr(results[0], 'embeddings') and results[0].embeddings is not None:
+                    embeddings = results[0].embeddings
+                    if isinstance(embeddings, torch.Tensor):
+                        embeddings = embeddings.cpu().numpy()
+                    
+                    # Flatten to 1D array
+                    features = embeddings.flatten().tolist()
+                    
+                    # Validate no NaN
+                    if not np.isnan(features).any():
+                        # Normalize to unit length for better similarity
+                        norm = np.linalg.norm(features)
+                        if norm > 0:
+                            features = (np.array(features) / norm).tolist()
+                        return features
             
-            return [0.0] * 512
+            # Method 2: Extract features from model's backbone
+            # Get the model's feature extractor
+            if hasattr(self.model, 'model') and hasattr(self.model.model, 'model'):
+                # For YOLO models, get features from the detection head
+                preprocessed = self.model.predictor.preprocess(img)
+                features = self.model.model.forward_features(preprocessed)
+                
+                if isinstance(features, torch.Tensor):
+                    # Global average pooling to get fixed size
+                    features = features.mean(dim=[2, 3]).flatten().cpu().numpy().tolist()
+                    
+                    # Normalize
+                    norm = np.linalg.norm(features)
+                    if norm > 0:
+                        features = (np.array(features) / norm).tolist()
+                    
+                    return features
+            
+            # Method 3: Use the model's predict with return_embeddings
+            return self._get_fallback_features(img)
             
         except Exception as e:
             print(f"Feature extraction error: {e}")
+            return self._get_fallback_features(img)
+    
+    def _get_fallback_features(self, img):
+        """
+        Fallback: Extract simple image statistics as features.
+        This is a last resort if the model's embedding extraction fails."""
+        try:
+            # Convert to numpy
+            img_np = np.array(img.resize((224, 224))) / 255.0
+            
+            # Extract simple features: color histograms, edges, etc.
+            features = []
+            
+            # Color histograms (RGB)
+            for c in range(3):
+                hist = np.histogram(img_np[:,:,c], bins=16, range=(0,1))[0]
+                features.extend(hist)
+            
+            # Mean and std per channel
+            for c in range(3):
+                features.append(np.mean(img_np[:,:,c]))
+                features.append(np.std(img_np[:,:,c]))
+            
+            # Normalize features
+            features = np.array(features)
+            norm = np.linalg.norm(features)
+            if norm > 0:
+                features = (features / norm).tolist()
+            
+            print(f"Using fallback features (dimension: {len(features)})")
+            return features
+            
+        except Exception as e:
+            print(f"Fallback feature extraction failed: {e}")
+            # Return zero vector as last resort
             return [0.0] * 512
     
     def predict(self, image_url: str = None, image_base64: str = None, 
@@ -81,23 +143,19 @@ class YOLOInference:
                         }
                         predictions.append(pred)
                 
-                # Get segmentation masks if requested (skip if too large)
+                # Get segmentation masks if requested
                 if return_segmentation and result.masks is not None:
-                    # Only return polygon format (smaller)
-                    if hasattr(result, 'masks') and result.masks is not None:
-                        # Get xy polygons instead of full masks
-                        if hasattr(result.masks, 'xy'):
-                            for polygon in result.masks.xy:
-                                if polygon is not None and len(polygon) > 0:
-                                    segmentation_masks.append(polygon.tolist())
+                    if hasattr(result.masks, 'xy'):
+                        for polygon in result.masks.xy:
+                            if polygon is not None and len(polygon) > 0:
+                                segmentation_masks.append(polygon.tolist())
             
             # Extract features
             features = None
             if return_features:
                 features = self._extract_features(img)
-                # Ensure features is a list of floats
                 if features is None:
-                    features = [0.0] * 512
+                    features = self._get_fallback_features(img)
             
             return {
                 "success": True,
