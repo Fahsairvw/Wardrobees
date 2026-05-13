@@ -9,11 +9,32 @@ The goal of Wardrobees is not to stop users from shopping, but to promote consci
 - Python 3.10+
 - Flutter (for mobile app development)
 
-### Setup
+### Setup with Docker
 
 1. **Start Server:**
    ```bash
    docker-compose up -d
+   ```
+2. **Access API:**
+   - API Docs: `http://localhost:8000/docs`
+   - Health Check: `http://localhost:8000/ml/health`
+   
+3. **Stop Server:**
+   ```bash
+   docker-compose down
+   ```
+
+### Local Development
+1. **Backend:**
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   uvicorn app:app --reload
+   ```
+2. **Mobile App:**
+   ```bash
+   cd frontend
+   flutter run
    ```
 
 ### Google Colab
