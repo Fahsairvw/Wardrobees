@@ -13,6 +13,7 @@ from routes.detect import router as detect_router
 from routes.search import router as search_router
 from routes.feedback import router as feedback_router
 from routes.debug import router as debug_router
+from routes.ml_predict import router as ml_router
 
 # App setup
 app = FastAPI(
@@ -53,3 +54,4 @@ app.include_router(detect_router)
 app.include_router(search_router)
 app.include_router(feedback_router)
 app.include_router(debug_router)
+app.include_router(ml_router)
