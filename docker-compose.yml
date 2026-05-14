@@ -2,7 +2,25 @@ version: '3.8'
 
 services:
 
-  # ── PostgreSQL + pgvector ──────────────────────────────────────────────────
+  # Backend API
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: wardrobees-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - ./models:/app/models
+
+  # PostgreSQL + pgvector
   db:
     image: pgvector/pgvector:pg16    # official pgvector image — includes extension
     container_name: wardrobees-db
@@ -25,7 +43,7 @@ services:
       timeout:  5s
       retries:  5
 
-  # ── pgAdmin (optional — visual DB browser) ────────────────────────────────
+  # pgAdmin 
   pgadmin:
     image: dpage/pgadmin4
     container_name: closet_pgadmin

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-from db import init_db
+from db import init_db, seed_demo_data
 
 # Import routers
 from routes.user import router as user_router
@@ -13,6 +13,7 @@ from routes.detect import router as detect_router
 from routes.search import router as search_router
 from routes.feedback import router as feedback_router
 from routes.debug import router as debug_router
+from routes.ml_predict import router as ml_router
 
 # App setup
 app = FastAPI(
@@ -25,6 +26,7 @@ app = FastAPI(
 @app.on_event('startup')
 async def startup_event():
     init_db()
+    seed_demo_data()
 
 
 app.add_middleware(
@@ -53,3 +55,4 @@ app.include_router(detect_router)
 app.include_router(search_router)
 app.include_router(feedback_router)
 app.include_router(debug_router)
+app.include_router(ml_router)

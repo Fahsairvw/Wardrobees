@@ -17,9 +17,6 @@ env/
 *.swo
 
 # Photos and images
-*.jpg
-*.jpeg
-*.png
 *.gif
 *.webp
 *.bmp
@@ -32,3 +29,15 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+
+# MLflow tracking data
+mlflow_export/mlflow/
+mlflow.db
+*.db
+
+# image files
+*.jpg
+*.jpeg
+*.png
+*.svg
+*.ico

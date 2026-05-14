@@ -12,6 +12,34 @@ logger = getLogger(__name__)
 
 
 def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
+    """
+    Full pipeline: image bytes → detected clothing items with transparent bg.
+
+    Steps:
+        1. Decode bytes → numpy BGR
+        2. Run YOLOv8-seg → bboxes + segmentation contours
+        3. For each detection:
+           a. Draw contour mask → BGRA (Ultralytics native technique)
+           b. Crop tight to bbox
+           c. Convert to PIL RGBA PNG
+           d. Extract ResNet50 embedding
+        4. Return list of item dicts
+
+    Args:
+        image_bytes: Raw image bytes from phone upload
+
+    Returns:
+        List of dicts per detected item:
+        {
+            cat_id, cat_name, group,
+            confidence,
+            img_bytes  (PNG bytes, transparent background),
+            width, height,
+            embedding  (2048-dim float list),
+            partial    (bool),
+            warning    (str or None)
+        }
+    """
     # Step 1 — decode
     nparr = np.frombuffer(image_bytes, np.uint8)
     img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)

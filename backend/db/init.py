@@ -113,3 +113,33 @@ def init_db(retry_count=5, retry_delay=2):
             else:
                 logging.error(f'Failed after {retry_count} attempts')
                 raise
+
+
+def seed_demo_data():
+    """Seed demo data for development. Safe to run multiple times."""
+    try:
+        from .user import create_user
+        
+        # Create demo user if it doesn't exist
+        demo_user = create_user(
+            name="Demo User",
+            email="demo@wardrobees.local",
+            role="user"
+        )
+        logging.info(f'Demo user created/verified: {demo_user["email"]}')
+        
+        # Create wardrobe for demo user
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute('''
+                    INSERT INTO wardrobe (user_id)
+                    SELECT %s WHERE NOT EXISTS (
+                        SELECT 1 FROM wardrobe WHERE user_id = %s
+                    )
+                ''', (demo_user["user_id"], demo_user["user_id"]))
+                conn.commit()
+        
+        logging.info(f'Demo wardrobe created/verified for user_id: {demo_user["user_id"]}')
+        
+    except Exception as e:
+        logging.warning(f'Could not seed demo data: {str(e)}')
