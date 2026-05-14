@@ -7,11 +7,6 @@ import '../models/wardrobe.dart';
 import '../models/cloth_item.dart';
 
 class ApiService {
-  // Change this to your backend URL
-  // For Android emulator: http://10.0.2.2:80
-  // For iOS simulator: http://localhost:80
-  // For physical device: http://<your_machine_ip>:80
-  // For Web: http://127.0.0.1:80 (if localhost doesn't work)
   static const String baseUrl = 'http://127.0.0.1';
 
   // Health check
@@ -23,7 +18,6 @@ class ApiService {
 
       return response.statusCode == 200;
     } catch (e) {
-      print('Health check error: $e');
       return false;
     }
   }
@@ -32,23 +26,18 @@ class ApiService {
   static Future<Wardrobe> getWardrobe(int userId) async {
     try {
       final url = '$baseUrl/wardrobe/$userId';
-      print('DEBUG: Fetching wardrobe from $url');
       
       final response = await http.get(
         Uri.parse(url),
       ).timeout(const Duration(seconds: 10));
-
-      print('DEBUG: Response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final wardrobe = Wardrobe.fromJson(jsonDecode(response.body));
-        print('DEBUG: Got ${wardrobe.items.length} items');
         return wardrobe;
       } else {
         throw Exception('Failed to load wardrobe: ${response.statusCode}');
       }
     } catch (e) {
-      print('DEBUG: Error fetching wardrobe: $e');
       throw Exception('Error fetching wardrobe: $e');
     }
   }
@@ -104,7 +93,6 @@ class ApiService {
   static Future<Map<String, dynamic>> detectClothingItems(int userId, Uint8List imageBytes, String filename) async {
     try {
       final url = '$baseUrl/detect/$userId';
-      print('DEBUG: Uploading image for detection to $url');
 
       // Determine mime type from filename
       String subtype = 'jpeg';
@@ -129,16 +117,12 @@ class ApiService {
       final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
       final response = await http.Response.fromStream(streamedResponse);
 
-      print('DEBUG: Detection response status: ${response.statusCode}');
-      print('DEBUG: Detection response body: ${response.body}');
-
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
         throw Exception('Detection failed: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('DEBUG: Error detecting items: $e');
       throw Exception('Error detecting items: $e');
     }
   }

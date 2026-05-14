@@ -24,7 +24,7 @@ class _ClothingItemScreenState extends State<ClothingItemScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete Item'),
-          content: const Text('Are you sure you want to delete this item? This action cannot be undone.'),
+          content: const Text('Are you sure to delete this item? This action cannot be undone.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),

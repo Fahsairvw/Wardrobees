@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import 'dart:typed_data';
+import 'dart:convert';
 
 class UploadScreen extends StatefulWidget {
   final int userId;
@@ -74,8 +75,30 @@ class _UploadScreenState extends State<UploadScreen> {
         _isLoading = false;
         _errorMessage = e.toString();
       });
-      _showErrorDialog(_errorMessage ?? 'Error during detection');
+      _showErrorDialog(_extractErrorDetail(_errorMessage ?? 'Error during detection'));
     }
+  }
+
+  String _extractErrorDetail(String errorMessage) {
+    // Try to extract JSON detail from error message
+    try {
+      final jsonMatch = RegExp(r'\{.*"detail":\s*"([^"]+)".*\}').firstMatch(errorMessage);
+      if (jsonMatch != null) {
+        return jsonMatch.group(1) ?? errorMessage;
+      }
+      // Try to parse as JSON directly
+      if (errorMessage.contains('{') && errorMessage.contains('detail')) {
+        final jsonStart = errorMessage.lastIndexOf('{');
+        final jsonStr = errorMessage.substring(jsonStart);
+        final parsed = jsonDecode(jsonStr);
+        if (parsed['detail'] != null) {
+          return parsed['detail'];
+        }
+      }
+    } catch (e) {
+      // If parsing fails, return original message
+    }
+    return errorMessage;
   }
 
   void _showErrorDialog(String message) {

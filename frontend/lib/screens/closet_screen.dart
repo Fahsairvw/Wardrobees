@@ -127,7 +127,6 @@ class _ClosetScreenState extends State<ClosetScreen> {
             }
             if (items.isNotEmpty) {
               groupedByGroup[groupName] = items;
-              print('DEBUG: Group "$groupName" has ${items.length} items');
             }
           });
 
@@ -227,7 +226,6 @@ class _ClosetScreenState extends State<ClosetScreen> {
 
   Widget _buildClothingItem(ClothItem item) {
     final imageUrl = ApiService.getImageUrl(item.imageUrl);
-    print('DEBUG: Loading image for ${item.name}: $imageUrl');
 
     return Container(
       decoration: ShapeDecoration(
@@ -235,7 +233,6 @@ class _ClosetScreenState extends State<ClosetScreen> {
           image: NetworkImage(imageUrl),
           fit: BoxFit.cover,
           onError: (exception, stackTrace) {
-            print('DEBUG: Image load error for $imageUrl: $exception');
           },
         ),
         shape: RoundedRectangleBorder(
