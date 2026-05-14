@@ -68,3 +68,9 @@ psql -d closet_db -c "\dx"
 3. Test model [test1](https://colab.research.google.com/drive/18HU_SsrOqhLxh3fUMctetj6M4ZFfL2Et?usp=sharing)
 4. Model Fairness [fairness](https://colab.research.google.com/drive/1fV8MfqLm_h0Wvr-8KiV93EapQfPrJHg7?usp=sharing)
 5. Model Versioning, Explainability, Prediction[versioning](https://colab.research.google.com/drive/1adetUTaBbpClGpDZiXfHIk4UDqKWx3hG?usp=sharing)
+
+### Training & Model Management
+- We trained a custom YOLOv26-seg model on Deepfashion2 Dataset with 500 samples per class. The trained model is saved as `yolo26.pt` and included in the `backend/models/` directory.
+- The `model_loader.py` is designed to load `yolo26.pt` which is our trained model for clothing detection and segmentation. It checks multiple paths to ensure the model is found whether running locally or in a Docker container.
+- The `inference.py` uses the loaded model to perform inference on input images, returning bounding boxes and segmentation masks for detected clothing items.
+- `mlflow` is used for experiment tracking during model training, allowing us to log parameters, metrics, and artifacts for each training run. This helps us compare different model versions and select the best performing one for deployment.

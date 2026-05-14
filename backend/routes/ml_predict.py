@@ -23,15 +23,8 @@ async def health_check():
 async def predict(request: PredictRequest):
     """
     Run clothing detection and segmentation
-    
-    Input formats:
-    - image_url: HTTPS URL to an image
-    - image_base64: Base64 encoded image string
-    
-    Returns:
-    - predictions: List of detected clothing items with class, confidence, bbox
-    - features: Feature vector for similarity matching
-    - segmentation_masks: Polygon masks for each detected item
+
+    Accepts either image URL or base64-encoded image. Returns detected objects, segmentation masks, and feature vector.
     """
     if not request.image_url and not request.image_base64:
         raise HTTPException(status_code=400, detail="Either image_url or image_base64 required")
