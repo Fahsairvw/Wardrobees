@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-# from db import init_db
+from db import init_db
 
 # Import routers
 from routes.user import router as user_router
@@ -23,9 +23,9 @@ app = FastAPI(
 )
 
 
-# @app.on_event('startup')
-# async def startup_event():
-#     init_db()
+@app.on_event('startup')
+async def startup_event():
+    init_db()
 
 
 app.add_middleware(
@@ -35,9 +35,9 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-# storage_path = Path(__file__).parent / 'storage'
-# storage_path.mkdir(exist_ok=True)
-# app.mount('/storage', StaticFiles(directory=str(storage_path)), name='storage')
+storage_path = Path(__file__).parent / 'storage'
+storage_path.mkdir(exist_ok=True)
+app.mount('/storage', StaticFiles(directory=str(storage_path)), name='storage')
 
 
 # Health check

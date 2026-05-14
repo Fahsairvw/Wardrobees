@@ -8,6 +8,7 @@ The goal of Wardrobees is not to stop users from shopping, but to promote consci
 - Docker & Docker Compose
 - Python 3.10+
 - Flutter (for mobile app development)
+- PostgreSQL & pgvector (if running backend locally)
 
 ### Setup with Docker
 
@@ -24,8 +25,30 @@ The goal of Wardrobees is not to stop users from shopping, but to promote consci
    docker-compose down
    ```
 
-### Local Development
-1. **Backend:**
+### Setup with Local Development
+1. Set up database
+```bash
+brew services start postgresql@17
+```
+
+1.2 Create user and database
+```bash
+psql -d postgres -c "CREATE USER wardrobe WITH PASSWORD 'your_password';"
+psql -d postgres -c "CREATE DATABASE closet_db OWNER wardrobe;"
+psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE closet_db TO wardrobe;"
+```
+
+1.3 Create vector extension (as superuser)
+```bash
+psql -d closet_db -c "CREATE EXTENSION IF NOT EXISTS vector;"
+```
+
+1.4 Verify setup
+```bash
+psql -d closet_db -c "\dx"
+```
+
+2. **Backend:**
    ```bash
    cd backend
    python -m venv venv
@@ -33,7 +56,7 @@ The goal of Wardrobees is not to stop users from shopping, but to promote consci
    pip install -r requirements.txt
    uvicorn app:app --reload
    ```
-2. **Mobile App:**
+3. **Frontend:**
    ```bash
    cd frontend
    flutter run
