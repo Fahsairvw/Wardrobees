@@ -2,13 +2,13 @@ import numpy as np
 import cv2
 import io
 from PIL import Image
+from rembg import remove
 from .config import CAT_NAMES, CONF_THRESHOLD, MIN_SIZE, BORDER_MARGIN, get_group
 from .models import yolo_model
-from .mask import isolate_with_mask
 from .embedding import get_embedding
-import logging
+from logging import getLogger
 
-logging.basicConfig(level=logging.DEBUG)
+logger = getLogger(__name__)
 
 
 def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
@@ -17,7 +17,7 @@ def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
 
     Steps:
         1. Decode bytes → numpy BGR
-        2. Run YOLOv26-seg → bboxes + segmentation contours
+        2. Run YOLOv8-seg → bboxes + segmentation contours
         3. For each detection:
            a. Draw contour mask → BGRA (Ultralytics native technique)
            b. Crop tight to bbox
@@ -42,43 +42,37 @@ def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
     """
     # Step 1 — decode
     nparr = np.frombuffer(image_bytes, np.uint8)
-    img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)   # BGR
+    img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
     if img_cv is None:
-        logging.error('Could not decode image')
+        logger.error('Could not decode image')
         return []
 
     H, W = img_cv.shape[:2]
-    logging.info(f'  Image: {W}x{H}px')
+    logger.info(f'  Image: {W}x{H}px')
 
     # Step 2 — YOLO inference
-    # Pass BGR directly — Ultralytics handles conversion internally
     results = yolo_model(img_cv, conf=CONF_THRESHOLD)[0]
 
     if results.masks is None or len(results.boxes) == 0:
-        logging.info('  No clothing items detected')
+        logger.info('  No clothing items detected')
         return []
 
-    logging.info(f'  YOLO found {len(results.boxes)} item(s)')
+    logger.info(f'  YOLO found {len(results.boxes)} item(s)')
     items = []
 
-    # results.masks.xy → list of contour arrays, one per detection
-    # results.boxes   → corresponding bboxes + class + conf
     for contour, box in zip(results.masks.xy, results.boxes):
         cat_id = int(box.cls[0])
         confidence = float(box.conf[0])
 
-        # Bbox coordinates
         x1, y1, x2, y2 = box.xyxy.cpu().numpy().squeeze().astype(np.int32)
         bbox_w = x2 - x1
         bbox_h = y2 - y1
 
-        # Skip tiny detections
         if bbox_w < MIN_SIZE or bbox_h < MIN_SIZE:
-            logging.info(f'Skip tiny: {bbox_w}x{bbox_h}px ({CAT_NAMES[cat_id]})')
+            logger.info(f'  Skip tiny: {bbox_w}x{bbox_h}px ({CAT_NAMES[cat_id]})')
             continue
 
-        # Partial detection — item touches image border
         is_partial = (
             x1 <= BORDER_MARGIN or
             y1 <= BORDER_MARGIN or
@@ -86,24 +80,32 @@ def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
             y2 >= H - BORDER_MARGIN
         )
 
-        # Step 3a — isolate using Ultralytics native mask technique
-        # Returns BGRA with transparent background
-        isolated_bgra = isolate_with_mask(img_cv, contour)
+        # Step 3a — build YOLO seg mask on full image
+        seg_mask = np.zeros((H, W), dtype=np.uint8)
+        cv2.fillPoly(seg_mask, [contour.astype(np.int32)], 255)
 
-        # Step 3b — crop tight to bbox (with small padding)
+        # Step 3b — apply mask → clothing only, everything else black
+        clothing_bgr = cv2.bitwise_and(img_cv, img_cv, mask=seg_mask)
+
+        # Step 3c — crop tight to bbox
         PAD = 5
         cx1 = max(0, x1 - PAD)
         cy1 = max(0, y1 - PAD)
         cx2 = min(W, x2 + PAD)
         cy2 = min(H, y2 + PAD)
-        cropped_bgra = isolated_bgra[cy1:cy2, cx1:cx2]
+        cropped_bgr = clothing_bgr[cy1:cy2, cx1:cx2]
+        cropped_mask = seg_mask[cy1:cy2, cx1:cx2]
 
-        # Step 3c — convert BGRA → RGBA PIL image
-        # cv2 uses BGRA, PIL uses RGBA — swap B and R channels
-        cropped_rgba = cv2.cvtColor(cropped_bgra, cv2.COLOR_BGRA2RGBA)
-        pil_img = Image.fromarray(cropped_rgba, 'RGBA')
+        # Step 3d — convert to RGBA using YOLO mask as alpha
+        #           so background is already transparent before rembg
+        cropped_rgb = cv2.cvtColor(cropped_bgr, cv2.COLOR_BGR2RGB)
+        cropped_rgba = np.dstack([cropped_rgb, cropped_mask])  # alpha = seg mask
+        pil_crop = Image.fromarray(cropped_rgba, 'RGBA')
 
-        # Step 3d — extract embedding
+        # Step 3e — rembg polishes the edges on the already-masked clothing
+        pil_img = remove(pil_crop)
+
+        # Step 3f — extract embedding
         embedding = get_embedding(pil_img)
 
         # Encode to PNG bytes
@@ -124,7 +126,7 @@ def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
             'warning': 'Item may be cut off at edge' if is_partial else None,
         })
 
-        logging.info(f'{CAT_NAMES[cat_id]} ({confidence:.0%}) '
-                     f'— {bbox_w}x{bbox_h}px')
+        logger.info(f'{CAT_NAMES[cat_id]} ({confidence:.0%}) '
+                    f'— {bbox_w}x{bbox_h}px')
 
     return items

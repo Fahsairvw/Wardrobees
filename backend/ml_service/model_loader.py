@@ -2,6 +2,9 @@ import os
 from pathlib import Path
 from ultralytics import YOLO
 import torch
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 class ModelManager:
     """Singleton manager for YOLO model"""
@@ -47,9 +50,9 @@ class ModelManager:
         self.device = device
         self.variant = "yolo26" 
         
-        print(f"Model loaded: {self.variant}")
-        print(f"Path: {model_path}")
-        print(f"Device: {device}")
+        logger.info(f"Model loaded: {self.variant}")
+        logger.info(f"Path: {model_path}")
+        logger.info(f"Device: {device}")
         
         return self._model
     

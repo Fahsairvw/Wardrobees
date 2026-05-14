@@ -34,3 +34,10 @@ Thumbs.db
 mlflow_export/mlflow/
 mlflow.db
 *.db
+
+# image files
+*.jpg
+*.jpeg
+*.png
+*.svg
+*.ico

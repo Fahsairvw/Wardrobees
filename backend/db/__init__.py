@@ -1,6 +1,6 @@
 # Database module - exports all functions for backward compatibility
 
-from .init import init_db
+from .init import init_db, seed_demo_data
 from .user import create_user, get_user, get_user_by_email
 from .wardrobe import get_or_create_wardrobe
 from .cloth_item import (
@@ -13,7 +13,7 @@ from .search import find_similar
 from .stats import get_stats
 
 __all__ = [
-    'init_db',
+    'init_db', 'seed_demo_data',
     'create_user', 'get_user', 'get_user_by_email',
     'get_or_create_wardrobe',
     'save_cloth_item', 'get_wardrobe_items', 'get_cloth_item',

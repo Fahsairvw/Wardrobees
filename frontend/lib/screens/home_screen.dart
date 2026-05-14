@@ -8,6 +8,33 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0; // Home is at index 0 in navigation
+
+  void _onNavTap(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    
+    // Navigate to different screens based on index
+    switch (index) {
+      case 0:
+        // Already on home
+        break;
+      case 1:
+        Navigator.pushNamed(context, '/closet');
+        break;
+      case 2:
+        Navigator.pushNamed(context, '/upload');
+        break;
+      case 3:
+        // TODO: Navigate to Search
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Search feature coming soon')),
+        );
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: 'Add Items',
                 description: 'Upload your clothing items',
                 imageUrl: 'https://placehold.co/51x51',
-                onTap: () => _showSnackBar('Add Items tapped'),
+                onTap: () => Navigator.pushNamed(context, '/upload'),
               ),
               const SizedBox(height: 20),
 
@@ -78,11 +105,37 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: 'My Closet',
                 description: 'Browse your collection',
                 imageUrl: 'https://placehold.co/29x36',
-                onTap: () => _showSnackBar('My Closet tapped'),
+                onTap: () => Navigator.pushNamed(context, '/closet'),
               ),
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onNavTap,
+        backgroundColor: const Color(0xFFFFFDF7),
+        selectedItemColor: Colors.teal,
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.checkroom),
+            label: 'Closet',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.photo_camera),
+            label: 'Detect',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            label: 'Search',
+          ),
+        ],
       ),
     );
   }

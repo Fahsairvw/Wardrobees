@@ -5,6 +5,10 @@ import io
 import requests
 import torch
 from .model_loader import model_manager
+from logging import getLogger
+
+logger = getLogger(__name__)
+
 
 class YOLOInference:
     """Handle YOLO inference operations using yolo26.pt"""
@@ -90,7 +94,7 @@ class YOLOInference:
             return self._get_fallback_features(img)
             
         except Exception as e:
-            print(f"Feature extraction error: {e}")
+            logger.error(f"Feature extraction error: {e}")
             return self._get_fallback_features(img)
     
     def _get_fallback_features(self, img):
@@ -122,11 +126,11 @@ class YOLOInference:
             if norm > 0:
                 features = (features / norm).tolist()
             
-            print(f"Using fallback features (dimension: {len(features)})")
+            logger.info(f"Using fallback features (dimension: {len(features)})")
             return features
             
         except Exception as e:
-            print(f"Fallback feature extraction failed: {e}")
+            logger.error(f"Fallback feature extraction failed: {e}")
             # Return zero vector as last resort
             return [0.0] * 512
     
@@ -179,7 +183,7 @@ class YOLOInference:
             }
             
         except Exception as e:
-            print(f"Prediction error: {e}")
+            logger.error(f"Prediction error: {e}")
             import traceback
             traceback.print_exc()
             return {
@@ -189,5 +193,6 @@ class YOLOInference:
                 "features": None,
                 "segmentation_masks": None
             }
+
 
 inference_service = YOLOInference()

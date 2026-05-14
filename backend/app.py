@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-from db import init_db
+from db import init_db, seed_demo_data
 
 # Import routers
 from routes.user import router as user_router
@@ -26,6 +26,7 @@ app = FastAPI(
 @app.on_event('startup')
 async def startup_event():
     init_db()
+    seed_demo_data()
 
 
 app.add_middleware(

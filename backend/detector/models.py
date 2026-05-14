@@ -4,7 +4,7 @@ import torchvision.transforms as transforms
 from ultralytics import YOLO
 
 # Load YOLO model for detection
-yolo_model = YOLO('../models/yolo26.pt')
+yolo_model = YOLO('../models/closet_v26.pt')
 
 # Load ResNet50 for embedding extraction
 resnet = models.resnet50(pretrained=True)
