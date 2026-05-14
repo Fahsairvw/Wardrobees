@@ -17,7 +17,7 @@ def detect_and_remove_bg(image_bytes: bytes) -> list[dict]:
 
     Steps:
         1. Decode bytes → numpy BGR
-        2. Run YOLOv8-seg → bboxes + segmentation contours
+        2. Run YOLOv26-seg → bboxes + segmentation contours
         3. For each detection:
            a. Draw contour mask → BGRA (Ultralytics native technique)
            b. Crop tight to bbox

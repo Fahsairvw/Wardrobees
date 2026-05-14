@@ -7,7 +7,7 @@ import torch
 from .model_loader import model_manager
 
 class YOLOInference:
-    """Handle YOLO inference operations using closet_v8.pt"""
+    """Handle YOLO inference operations using yolo26.pt"""
     
     def __init__(self):
         self.model = model_manager.get_model()
@@ -38,46 +38,55 @@ class YOLOInference:
         Returns a 512-dimensional embedding vector.
         """
         try:
-            # Method 1: Use YOLO's built-in embedding if available
-            results = self.model(img, embed=True, verbose=False)  # embed=True returns features
+            # Method 1: Get features from model's internal representations
+            # Resize to model's expected input size
+            img_resized = img.resize((640, 640))
+            
+            # Convert to tensor
+            from torchvision import transforms
+            transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                                   std=[0.229, 0.224, 0.225])
+            ])
+            
+            img_tensor = transform(img_resized).unsqueeze(0).to(self.device)
+            
+            # Extract features from model's backbone
+            with torch.no_grad():
+                # Access the model's internal layers
+                if hasattr(self.model, 'model'):
+                    # For YOLO models, get features from backbone
+                    features = self.model.model.model[-2].forward(img_tensor)
+                    
+                    if isinstance(features, torch.Tensor):
+                        # Global average pooling
+                        features = features.mean(dim=[2, 3]).flatten().cpu().numpy()
+                        
+                        # Normalize
+                        norm = np.linalg.norm(features)
+                        if norm > 0:
+                            features = (features / norm).tolist()
+                        
+                        return features
+            
+            # Method 2: Use YOLO's predict and get features from result
+            results = self.model(img, verbose=False)
             
             if results and len(results) > 0:
-                # Check for embeddings
+                # Check if result has embeddings attribute
                 if hasattr(results[0], 'embeddings') and results[0].embeddings is not None:
                     embeddings = results[0].embeddings
                     if isinstance(embeddings, torch.Tensor):
                         embeddings = embeddings.cpu().numpy()
-                    
-                    # Flatten to 1D array
-                    features = embeddings.flatten().tolist()
-                    
-                    # Validate no NaN
-                    if not np.isnan(features).any():
-                        # Normalize to unit length for better similarity
+                    if embeddings.size > 0:
+                        features = embeddings.flatten().tolist()
                         norm = np.linalg.norm(features)
                         if norm > 0:
                             features = (np.array(features) / norm).tolist()
                         return features
             
-            # Method 2: Extract features from model's backbone
-            # Get the model's feature extractor
-            if hasattr(self.model, 'model') and hasattr(self.model.model, 'model'):
-                # For YOLO models, get features from the detection head
-                preprocessed = self.model.predictor.preprocess(img)
-                features = self.model.model.forward_features(preprocessed)
-                
-                if isinstance(features, torch.Tensor):
-                    # Global average pooling to get fixed size
-                    features = features.mean(dim=[2, 3]).flatten().cpu().numpy().tolist()
-                    
-                    # Normalize
-                    norm = np.linalg.norm(features)
-                    if norm > 0:
-                        features = (np.array(features) / norm).tolist()
-                    
-                    return features
-            
-            # Method 3: Use the model's predict with return_embeddings
+            # Method 3: Use fallback
             return self._get_fallback_features(img)
             
         except Exception as e:
@@ -87,10 +96,12 @@ class YOLOInference:
     def _get_fallback_features(self, img):
         """
         Fallback: Extract simple image statistics as features.
-        This is a last resort if the model's embedding extraction fails."""
+        This is a last resort if the model's embedding extraction fails.
+        """
         try:
             # Convert to numpy
-            img_np = np.array(img.resize((224, 224))) / 255.0
+            img_resized = img.resize((224, 224))
+            img_np = np.array(img_resized) / 255.0
             
             # Extract simple features: color histograms, edges, etc.
             features = []
@@ -125,7 +136,6 @@ class YOLOInference:
         try:
             img = self._load_image(image_url, image_base64)
             
-            # Run YOLO prediction
             results = self.model(img, verbose=False)
             
             predictions = []
@@ -135,17 +145,21 @@ class YOLOInference:
                 # Get bounding box predictions
                 if result.boxes is not None:
                     for box in result.boxes:
+                        # Handle box access correctly
+                        cls_id = int(box.cls[0]) if hasattr(box.cls, '__len__') else int(box.cls)
+                        conf = float(box.conf[0]) if hasattr(box.conf, '__len__') else float(box.conf)
+                        
                         pred = {
-                            "class_id": int(box.cls[0]),
-                            "class_name": self.model_names[int(box.cls[0])],
-                            "confidence": float(box.conf[0]),
-                            "bbox": box.xyxy[0].tolist(),
+                            "class_id": cls_id,
+                            "class_name": self.model_names[cls_id],
+                            "confidence": conf,
+                            "bbox": box.xyxy[0].tolist() if hasattr(box.xyxy[0], 'tolist') else list(box.xyxy[0])
                         }
                         predictions.append(pred)
                 
                 # Get segmentation masks if requested
                 if return_segmentation and result.masks is not None:
-                    if hasattr(result.masks, 'xy'):
+                    if hasattr(result.masks, 'xy') and result.masks.xy is not None:
                         for polygon in result.masks.xy:
                             if polygon is not None and len(polygon) > 0:
                                 segmentation_masks.append(polygon.tolist())
@@ -165,6 +179,9 @@ class YOLOInference:
             }
             
         except Exception as e:
+            print(f"Prediction error: {e}")
+            import traceback
+            traceback.print_exc()
             return {
                 "success": False,
                 "error": str(e),

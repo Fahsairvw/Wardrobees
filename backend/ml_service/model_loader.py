@@ -23,9 +23,9 @@ class ModelManager:
         if model_path is None:
             # Look for trained model
             possible_paths = [
-                "models/closet_v8.pt",                           # backend/models/
-                "../models/closet_v8.pt",                        # sibling to backend/
-                "/app/models/closet_v8.pt",                      # Docker container path
+                "models/yolo26.pt",                           # backend/models/
+                "../models/yolo26.pt",                        # sibling to backend/
+                "/app/models/yolo26.pt",                      # Docker container path
             ]
             
             for path in possible_paths:
@@ -35,7 +35,7 @@ class ModelManager:
         
         if model_path is None or not os.path.exists(model_path):
             raise FileNotFoundError(
-                f"Model 'closet_v8.pt' not found. Searched in: {possible_paths}"
+                f"Model 'yolo26.pt' not found. Searched in: {possible_paths}"
             )
         
         # Determine device
@@ -45,7 +45,7 @@ class ModelManager:
         self._model = YOLO(model_path)
         self.model_path = model_path
         self.device = device
-        self.variant = "closet_v8" 
+        self.variant = "yolo26" 
         
         print(f"Model loaded: {self.variant}")
         print(f"Path: {model_path}")
@@ -64,7 +64,7 @@ class ModelManager:
         return {
             "model_loaded": self._model is not None,
             "model_path": getattr(self, "model_path", None),
-            "model_variant": getattr(self, "variant", "closet_v8"),
+            "model_variant": getattr(self, "variant", "yolo26"),
             "device": getattr(self, "device", "unknown")
         }
 
